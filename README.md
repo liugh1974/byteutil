@@ -62,7 +62,7 @@ b, _ = bitDe.ReadBoo() // b is true
 
 ## Binary and Hex convert
 
-data := []byte{1, 2, 3, 4, 10, 11, byte(255)}
+data := []byte{1, 2, 3, 4, 10, 11, 255}
 
 hex := byteutil.BinaryToHex(data) // hex is 010203040A0BFF
 
