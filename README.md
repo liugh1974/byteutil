@@ -17,7 +17,7 @@ en.WriteString("example")
 
 data := en.GetContent()
 
-de = byteuit.NewByteDecoder(data)
+de := byteuit.NewByteDecoder(data)
 
 val, _ := de.ReadInt(1)   // val is 10
 
@@ -57,4 +57,15 @@ val, _ = bitDe.ReadInt(5) // val is 20
 b, _ = bitDe.ReadBool() // b is false
 
 b, _ = bitDe.ReadBoo() // b is true
+
+
+
+## Binary and Hex convert
+
+data := []byte{1, 2, 3, 4, 10, 11, byte(255)}
+
+hex := byteutil.BinaryToHex(data) // hex is 010203040A0BFF
+
+data = byteutil.HexToBinary(hex) // data is 1, 2, 3, 4, 10, 11, 255
+
 
