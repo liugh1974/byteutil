@@ -1,7 +1,6 @@
 package byteutil
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -61,10 +60,7 @@ func (b *ByteDecoder) ReadBytes(size uint) ([]byte, error) {
 }
 
 func (b *ByteDecoder) ReadString() (string, error) {
-	re, err := b.ReadRemains()
-	if err != nil {
-		return "", err
-	}
+	re, _ := b.ReadRemains()
 	return string(re), nil
 }
 
@@ -82,9 +78,5 @@ func (b *ByteDecoder) HasRemain() bool {
 }
 
 func (b *ByteDecoder) ReadRemains() ([]byte, error) {
-	if b.HasRemain() {
-		return b.stream[b.offset:], nil
-	} else {
-		return nil, errors.New("No reamins content")
-	}
+	return b.stream[b.offset:], nil
 }
