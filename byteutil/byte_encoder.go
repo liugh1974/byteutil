@@ -1,6 +1,7 @@
 package byteutil
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 )
@@ -24,12 +25,11 @@ var uint64MaxVal = map[uint]uint64{
 }
 
 type ByteEncoder struct {
-	stream []byte
-	offset uint
+	buf *bytes.Buffer
 }
 
 func NewByteEncoder() *ByteEncoder {
-	return &ByteEncoder{make([]byte, 128), 0}
+	return &ByteEncoder{buf: &bytes.Buffer{}}
 }
 
 func (b *ByteEncoder) WriteInt(size, val uint) error {
@@ -41,13 +41,12 @@ func (b *ByteEncoder) WriteInt(size, val uint) error {
 		return fmt.Errorf("%d cannot be greater than max value for size %d (%d)", val, size, uintMaxVal[size])
 	}
 
-	b.resize(size)
-	var i uint = 0
-
+	data := make([]byte, size)
+	var i uint
 	for ; i < size; i++ {
-		b.stream[b.offset] = byte(val >> (((size - i - 1) * 8) & 0xFF))
-		b.offset++
+		data[int(i)] = byte(val >> (((size - i - 1) * 8) & 0xFF))
 	}
+	b.buf.Write(data)
 	return nil
 }
 
@@ -60,54 +59,38 @@ func (b *ByteEncoder) WriteInt64(size uint, val uint64) error {
 		return fmt.Errorf("%d cannot be greater than max value for size %d (%d)", val, size, uint64MaxVal[size])
 	}
 
-	b.resize(size)
-
-	var i uint = 0
+	data := make([]byte, size)
+	var i uint
 	for ; i < size; i++ {
-		b.stream[b.offset] = byte(val >> (((size - i - 1) * 8) & 0xFF))
-		b.offset++
+		data[i] = byte(val >> (((size - i - 1) * 8) & 0xFF))
 	}
+	b.buf.Write(data)
 	return nil
 }
 
 func (b *ByteEncoder) WriteBytes(val []byte) error {
-	b.stream = append(b.stream[:b.offset], val...)
-	b.offset += uint(len(val))
+	b.buf.Write(val)
 	return nil
 }
 
 func (b *ByteEncoder) WriteString(val string) error {
-	return b.WriteStringWithSize(uint(len(val)), val)
-}
-
-func (b *ByteEncoder) WriteStringWithSize(size uint, val string) error {
-	if size < uint(len(val)) {
-		return fmt.Errorf("string length %d is greater than size: %d", len(val), size)
-	}
-
-	spaceSize := size - uint(len(val))
-	if spaceSize > 0 {
-		spaces := make([]byte, spaceSize)
-		b.stream = append(b.stream[:b.offset], spaces...)
-		b.offset += uint(spaceSize)
-	}
-
-	b.stream = append(b.stream[:b.offset], []byte(val)...)
-	b.offset += uint(len(val))
+	b.buf.Write([]byte(val))
 	return nil
 }
 
-func (b *ByteEncoder) resize(size uint) {
-	size = b.offset + size
-	if size < uint(len(b.stream)*2) {
-		size = uint(len(b.stream) * 2)
-	} else {
-		size = size + 1
+func (b *ByteEncoder) WriteStringWithSize(size uint, val string) error {
+	length := uint(len(val))
+	if size < length {
+		return fmt.Errorf("string length %d is greater than size: %d", len(val), size)
 	}
-	buf := make([]byte, size)
-	b.stream = append(b.stream, buf...)
+
+	if size > length {
+		b.buf.Write(make([]byte, int(size-length)))
+	}
+	b.buf.Write([]byte(val))
+	return nil
 }
 
 func (b *ByteEncoder) GetContent() []byte {
-	return b.stream[:b.offset]
+	return b.buf.Bytes()
 }

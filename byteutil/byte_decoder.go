@@ -2,32 +2,34 @@ package byteutil
 
 import (
 	"fmt"
+	"io"
 )
 
 type ByteDecoder struct {
-	stream []byte
-	offset uint
-	total  uint
+	r io.Reader
 }
 
-func NewByteDecoder(data []byte) *ByteDecoder {
-	return &ByteDecoder{data, 0, uint(len(data))}
+func NewByteDecoder(r io.Reader) *ByteDecoder {
+	return &ByteDecoder{r: r}
 }
 
 func (b *ByteDecoder) ReadInt(size uint) (uint, error) {
 	if size < 1 || size > 4 {
 		return 0, fmt.Errorf("read size %d is not in int size range 1 -- 4", size)
 	}
-	if b.offset+size > b.total {
-		return 0, fmt.Errorf("read int end of stream for size: %d", size)
+
+	buf := make([]byte, size)
+	n, err := b.r.Read(buf)
+	if err != nil {
+		return 0, err
+	}
+	if n != int(size) {
+		return 0, fmt.Errorf("Read exception, should be read %d, actually read %d", size, n)
 	}
 
 	var val uint
-	var i uint = 0
-	for ; i < size; i++ {
-		val = val << 8
-		val += uint(b.stream[b.offset])
-		b.offset++
+	for _, d := range buf {
+		val = (val << 8) | uint(d)
 	}
 	return val, nil
 }
@@ -36,47 +38,71 @@ func (b *ByteDecoder) ReadInt64(size uint) (uint64, error) {
 	if size < 1 || size > 8 {
 		return 0, fmt.Errorf("read size %d is not in int64 size range 1 -- 8", size)
 	}
-	if b.offset+size > b.total {
-		return 0, fmt.Errorf("read int64 end of stream for size: %d", size)
+
+	buf := make([]byte, size)
+	n, err := b.r.Read(buf)
+	if err != nil {
+		return 0, err
+	}
+	if n != int(size) {
+		return 0, fmt.Errorf("Read exception, should be read %d, actually read %d", size, n)
 	}
 
 	var val uint64
-	var i uint = 0
-	for ; i < size; i++ {
-		val = val << 8
-		val += uint64(b.stream[b.offset])
-		b.offset++
+	for _, d := range buf {
+		val = (val << 8) | uint64(d)
 	}
 	return val, nil
 }
 
 func (b *ByteDecoder) ReadBytes(size uint) ([]byte, error) {
-	if b.offset+size > b.total {
-		return nil, fmt.Errorf("read bytes end of stream for size: %d", size)
+	buf := make([]byte, size)
+	n, err := b.r.Read(buf)
+	if err != nil {
+		return nil, err
 	}
-	start := b.offset
-	b.offset += size
-	return b.stream[start:b.offset], nil
+	if n != int(size) {
+		return nil, fmt.Errorf("Read exception, should be read %d, actually read %d", size, n)
+	}
+	return buf, nil
 }
 
 func (b *ByteDecoder) ReadString() (string, error) {
-	re, _ := b.ReadRemains()
-	return string(re), nil
-}
-
-func (b *ByteDecoder) ReadStringWithSize(size uint) (string, error) {
-	re, err := b.ReadBytes(size)
+	data, err := b.ReadRemains()
 	if err != nil {
 		return "", err
 	}
-	return string(re), nil
+	return string(data), nil
+}
+
+func (b *ByteDecoder) ReadStringWithSize(size uint) (string, error) {
+	data, err := b.ReadBytes(size)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 
 }
 
 func (b *ByteDecoder) HasRemain() bool {
-	return b.offset < b.total
+	data, _ := b.ReadRemains()
+	return len(data) > 0
 }
 
 func (b *ByteDecoder) ReadRemains() ([]byte, error) {
-	return b.stream[b.offset:], nil
+	data := []byte{}
+	for {
+		buf := make([]byte, 1024)
+		n, err := b.r.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+
+		if n < 1024 {
+			data = append(data, buf[:n]...)
+			break
+		}
+		data = append(data, buf...)
+	}
+	return data, nil
 }
