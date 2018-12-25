@@ -46,7 +46,7 @@ bitEn.WriteBool(true)
 data := bitEn.GetContent()
 
 
-bitDe := byteuti.NewBitDecoder()
+bitDe := byteuti.NewBitDecoder(bytes.NewReader(data))
 
 val, _ := bitDe.ReadInt(4) // val is 10
 
